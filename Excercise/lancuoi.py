@@ -1283,17 +1283,16 @@ def start_scheduler():
         check_emails_and_process()  # Kiểm tra email đến và xử lý
         
         # Kiểm tra xem có phải là ngày 1 hoặc ngày 24 và thời gian là 22:27 hay không
-        if (now.day == 1 or now.day == 25) and now.hour == 5 and now.minute == 10:
+        if (now.day == 1 or now.day == 25) and now.hour == 6 and now.minute == 5:
             print("Đủ điều kiện gửi email. Gửi email...")
 
             # Gọi hàm send_email_with_attachment với đường dẫn tệp và mã lớp từ bảng tonghop
-            send_email_with_attachment(summary_file, class_codes)
+            save_absent_students_to_excel()
 
         else:
             print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
         
-        time.sleep(10)  # Kiểm tra mỗi 60 giây
-
+        time.sleep(40)  # Kiểm tra mỗi 60 giây
 
 def check_emails_and_process():
     # Thông tin đăng nhập email
@@ -1348,7 +1347,6 @@ def check_emails_and_process():
 
     mail.logout()
 
-
 def extract_class_codes_from_message(body):
     # Tìm và tách các mã lớp từ nội dung email theo định dạng đã cho
     match = re.search(r"Đây là báo cáo tổng hợp sinh viên vắng nhiều của tất cả các lớp: (.+)", body)
@@ -1357,7 +1355,6 @@ def extract_class_codes_from_message(body):
         return class_codes
     return []
 
-
 def send_late_report_email(from_email, email_class_codes):
     # Kiểm tra hạn chót (giả sử hạn chót là ngày 15 và 30 hàng tháng)
     today = datetime.today()
@@ -1365,35 +1362,9 @@ def send_late_report_email(from_email, email_class_codes):
         # Tạo nội dung báo cáo
         subject = "Báo cáo quản lý về lớp trễ hạn"
         body = f"Người gửi: {from_email}\nLớp: {', '.join(email_class_codes)}\nTình trạng: Trễ hạn"
-        recipient_email = "tranhuuhau2003@gmail.com"  # Email quản lý
+        recipient_email = "tranhuuhauthh@gmail.com"  # Email quản lý
 
         send_email(recipient_email, subject, body)
-
-
-def send_email(to_email, subject, body):
-     # Thông tin đăng nhập email
-    EMAIL_ACCOUNT = "tranhuuhauthh@gmail.com"
-    PASSWORD = "jmny hcmf voxq ekbj"  # Cần tạo app password nếu dùng Gmail
-    
-    sender_email = EMAIL_ACCOUNT
-    password = PASSWORD
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        # Gửi email
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(sender_email, password)
-            server.send_message(msg)
-            print(f"Đã gửi email tới {to_email}")
-    except Exception as e:
-        print(f"Lỗi khi gửi email: {e}")
 
 
 
