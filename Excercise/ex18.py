@@ -26,11 +26,9 @@ class ExcelApp:
         self.conn = sqlite3.connect('sinhvien.db')
         self.cursor = self.conn.cursor()
         
-                
-        # Khởi động luồng cho lịch trình gửi email
-        schedule.every().day.at("16:44").do(self.check_send_email)  # Gửi email mỗi ngày vào lúc 16:10
-        self.start_scheduler()
+    
 
+        self.start_scheduler()
         
         # Giao diện chính
         self.main_menu()
@@ -335,121 +333,7 @@ class ExcelApp:
         tong_so_tiet_entry.grid(row=10, column=1)
 
         tk.Button(add_window, text="Save student", command=save_student, bg="#4CAF50", fg="white").grid(row=11, column=0, columnspan=2, pady=10)
-
-
-    # def edit_student(self):
-    #     selected_item = self.tree.selection()
-
-    #     if not selected_item:
-    #         messagebox.showwarning("Warning", "Vui lòng chọn một sinh viên để chỉnh sửa.")
-    #         return
-
-    #     item = self.tree.item(selected_item)
-    #     mssv = item['values'][1]  # Lấy MSSV từ cột thứ hai trong TreeView
-
-    #     # Truy vấn để lấy thông tin sinh viên từ cơ sở dữ liệu
-    #     self.cursor.execute("""
-    #         SELECT s.mssv, s.ho_dem, s.ten, s.gioi_tinh, s.ngay_sinh, a."Vắng có phép", a."Vắng không phép", a."Tổng số tiết"
-    #         FROM students s
-    #         JOIN attendance a ON s.mssv = a.MSSV
-    #         WHERE s.mssv = ?
-    #     """, (mssv,))
-    #     student_data = self.cursor.fetchone()
-
-    #     if student_data is None:
-    #         messagebox.showerror("Error", "Không tìm thấy sinh viên trong cơ sở dữ liệu.")
-    #         return
-
-    #     def save_edit():
-    #         ho_dem = ho_dem_entry.get().strip()
-    #         ten = ten_entry.get().strip()
-    #         gioi_tinh = gioi_tinh_var.get()
-    #         ngay_sinh = ngay_sinh_entry.get().strip()
-    #         vắng_có_phép = int(vang_co_phap_entry.get() or 0)
-    #         vắng_không_phép = int(vang_khong_phap_entry.get() or 0)
-    #         tong_so_tiet = int(tong_so_tiet_entry.get() or 0)
-
-    #         if not ten:
-    #             messagebox.showerror("Error", "Tên sinh viên không được để trống!")
-    #             return
-
-    #         # Tính tỷ lệ vắng
-    #         if tong_so_tiet > 0:
-    #             ty_le_vang = (vắng_có_phép + vắng_không_phép) / tong_so_tiet * 100
-    #         else:
-    #             ty_le_vang = 0.0
-
-    #         try:
-    #             # Cập nhật thông tin sinh viên vào bảng students
-    #             self.cursor.execute("""
-    #                 UPDATE students
-    #                 SET ho_dem = ?, ten = ?, gioi_tinh = ?, ngay_sinh = ?
-    #                 WHERE mssv = ?
-    #             """, (ho_dem, ten, gioi_tinh, ngay_sinh, mssv))
-
-    #             # Cập nhật thông tin vắng vào bảng attendance
-    #             self.cursor.execute("""
-    #                 UPDATE attendance
-    #                 SET "Vắng có phép" = ?, "Vắng không phép" = ?, "Tổng số tiết" = ?, "Tỷ lệ vắng" = ?
-    #                 WHERE MSSV = ?
-    #             """, (vắng_có_phép, vắng_không_phép, tong_so_tiet, f"{ty_le_vang:.1f}", mssv))
-
-    #             self.conn.commit()
-    #             messagebox.showinfo("Info", "Cập nhật sinh viên thành công!")
-    #             edit_window.destroy()
-    #             self.load_students_to_treeview()
-
-    #         except Exception as e:
-    #             messagebox.showerror("Error", f"Lỗi khi cập nhật sinh viên: {e}")
-
-    #     # Tạo cửa sổ chỉnh sửa
-    #     edit_window = tk.Toplevel(self.root)
-    #     edit_window.title("Edit Student")
-
-    #     # Lấy dữ liệu hiện tại để hiển thị vào các trường nhập liệu
-    #     tk.Label(edit_window, text="MSSV:").grid(row=0, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text=student_data[0]).grid(row=0, column=1, padx=10, pady=10)
-
-    #     tk.Label(edit_window, text="Họ đệm:").grid(row=1, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Tên:").grid(row=2, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Giới tính:").grid(row=3, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Ngày sinh:").grid(row=4, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Vắng có phép:").grid(row=5, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Vắng không phép:").grid(row=6, column=0, padx=10, pady=10)
-    #     tk.Label(edit_window, text="Tổng số tiết:").grid(row=7, column=0, padx=10, pady=10)
-
-    #     ho_dem_entry = tk.Entry(edit_window)
-    #     ho_dem_entry.insert(0, student_data[1])
-    #     ten_entry = tk.Entry(edit_window)
-    #     ten_entry.insert(0, student_data[2])
-
-    #     gioi_tinh_var = tk.StringVar(value=student_data[3])
-    #     tk.Radiobutton(edit_window, text="Nam", variable=gioi_tinh_var, value="Nam").grid(row=3, column=1)
-    #     tk.Radiobutton(edit_window, text="Nữ", variable=gioi_tinh_var, value="Nữ").grid(row=3, column=2)
-
-    #     ngay_sinh_entry = tk.Entry(edit_window)
-    #     ngay_sinh_entry.insert(0, student_data[4])
-
-    #     vang_co_phap_entry = tk.Entry(edit_window)
-    #     vang_co_phap_entry.insert(0, student_data[5])
-
-    #     vang_khong_phap_entry = tk.Entry(edit_window)
-    #     vang_khong_phap_entry.insert(0, student_data[6])
-
-    #     tong_so_tiet_entry = tk.Entry(edit_window)
-    #     tong_so_tiet_entry.insert(0, student_data[7])
-
-    #     ho_dem_entry.grid(row=1, column=1)
-    #     ten_entry.grid(row=2, column=1)
-    #     ngay_sinh_entry.grid(row=4, column=1)
-    #     vang_co_phap_entry.grid(row=5, column=1)
-    #     vang_khong_phap_entry.grid(row=6, column=1)
-    #     tong_so_tiet_entry.grid(row=7, column=1)
-
-    #     tk.Button(edit_window, text="Save Changes", command=save_edit, bg="#4CAF50", fg="white").grid(row=8, column=0, columnspan=2, pady=10)
-    
-    
-    
+  
     def edit_student(self):
         selected_item = self.tree.selection()
 
@@ -993,29 +877,34 @@ class ExcelApp:
                 server.login(sender_email, sender_password)
                 server.send_message(msg)
                 print("Email đã được gửi thành công!")
+                messagebox.showinfo("Email Success", f"Email đã gửi thành công tới {recipient_email}")  # Thông báo thành công
         except Exception as e:
             print(f"Có lỗi xảy ra khi gửi email: {e}")
+            messagebox.showerror("Email Error", f"Có lỗi xảy ra khi gửi email: {e}")  # Thông báo lỗi
         finally:
             attachment.close()
-
+   
     def start_scheduler(self):
         def run_scheduler():
             while True:
-                schedule.run_pending()
-                time.sleep(1)
+                now = datetime.now()
+                # Kiểm tra xem có phải là ngày 24 và thời gian là 19:38 hay không
+                if now.day == 24 and now.hour == 20 and now.minute == 5:
+                    print("Đủ điều kiện gửi email. Gửi email...")
+                    
+                    # Đường dẫn tới tệp Excel cần đính kèm
+                    file_path = 'tong_hop_sinh_vien_vang_nhieu.xlsx'
+                    # Gọi hàm send_email_with_attachment với đường dẫn tệp
+                    self.send_email_with_attachment(file_path)
+
+                else:
+                    print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
+                
+                time.sleep(60)  # Kiểm tra mỗi 10 giây
 
         threading.Thread(target=run_scheduler, daemon=True).start()
         print("Scheduler đã được khởi động.")
-
-    def check_send_email(self):
-        today = datetime.now()
-        print(f"Kiểm tra gửi email vào {today.strftime('%Y-%m-%d %H:%M:%S')}")
-        if today.day in [1, 23] and today.hour == 16 and today.minute == 10:  # Kiểm tra nếu hôm nay là ngày 1 hoặc 23, và giờ là 16:10
-            print("Đủ điều kiện gửi email. Gửi email...")
-            self.send_email()
-        else:
-            print("Không đủ điều kiện để gửi email.")
-        
+              
     def main_menu(self):
         # Đặt kích thước và vị trí cửa sổ khi mở
         self.root.geometry("1400x750+70+15")  # Kích thước: 1000x700, vị trí: x=300, y=100
