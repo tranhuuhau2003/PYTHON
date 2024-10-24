@@ -57,8 +57,8 @@ def load_data():
         ten_mon_hoc = df.iloc[8, 2]  # Tên môn học nằm ở hàng 8, cột 2
 
         # Lấy dữ liệu sinh viên từ hàng 13 trở đi
-        df_sinh_vien = df.iloc[13:, [1, 2, 3, 4, 5, 24, 25, 26, 27]]  # Chỉ lấy các cột cần thiết
-        df_sinh_vien.columns = ['MSSV', 'Họ đệm', 'Tên', 'Giới tính', 'Ngày sinh', 'Vắng có phép', 'Vắng không phép', 'Tổng số tiết', '(%) vắng']
+        df_sinh_vien = df.iloc[13:, [1, 2, 3, 4, 5, 6, 9, 12, 15, 18, 21, 24, 25, 26, 27]]  # Chỉ lấy các cột cần thiết
+        df_sinh_vien.columns = ['MSSV', 'Họ đệm', 'Tên', 'Giới tính', 'Ngày sinh','11/06/2024', '18/06/2024', '25/06/2024', '02/07/2024', '09/07/2024', '23/07/2024', 'Vắng có phép', 'Vắng không phép', 'Tổng số tiết', '(%) vắng']
 
         # Chuyển đổi các cột phần trăm vắng từ ',', sang '.'
         if '(%) vắng' in df_sinh_vien.columns:
@@ -72,8 +72,8 @@ def load_data():
         df_sinh_vien['Tổng buổi vắng'] = df_sinh_vien['Vắng có phép'] + df_sinh_vien['Vắng không phép']
         
         # Lấy danh sách mssv để thêm email test vào db
-        mssv_list = df_sinh_vien['MSSV'].tolist()
-
+        mssv_list = df_sinh_vien['MSSV'].tolist()        
+        
         return df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list
     except Exception as e:
         print(f"Lỗi khi đọc dữ liệu từ Excel: {e}")
@@ -91,6 +91,12 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
                             ten TEXT,
                             gioi_tinh TEXT,
                             ngay_sinh TEXT,
+                            "11/06/2024" TEXT,
+                            "18/06/2024" TEXT,
+                            "25/06/2024" TEXT,
+                            "02/07/2024" TEXT,
+                            "09/07/2024" TEXT,
+                            "23/07/2024" TEXT,
                             vang_co_phep INTEGER,
                             vang_khong_phep INTEGER,
                             tong_so_tiet INTEGER,
@@ -141,6 +147,12 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
                     str(row['Tên']),
                     str(row['Giới tính']),
                     str(row['Ngày sinh']),
+                    str(row['11/06/2024']),  # Giá trị ngày 11/06/2024
+                    str(row['18/06/2024']),  # Giá trị ngày 18/06/2024
+                    str(row['25/06/2024']),  # Giá trị ngày 25/06/2024
+                    str(row['02/07/2024']),  # Giá trị ngày 02/07/2024
+                    str(row['09/07/2024']),  # Giá trị ngày 09/07/2024
+                    str(row['23/07/2024']),  # Giá trị ngày 23/07/2024
                     int(float(row['Vắng có phép'])),
                     int(float(row['Vắng không phép'])),
                     int(float(row['Tổng số tiết'])),
@@ -153,9 +165,10 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
 
                 cursor.execute("""INSERT INTO students (
                                     mssv, ho_dem, ten, gioi_tinh, ngay_sinh, 
+                                    "11/06/2024", "18/06/2024", "25/06/2024", "02/07/2024", "09/07/2024", "23/07/2024",
                                     vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang, tong_buoi_vang,
                                     dot, ma_lop, ten_mon_hoc) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", values_to_insert)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", values_to_insert)
 
             except Exception as e:
                 print(f"Lỗi khi thêm sinh viên {row['MSSV']}: {e}")
@@ -219,28 +232,32 @@ def clear_table():
 
 def load_from_excel_to_treeview(tree):
     df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list = load_data()
-    
+
     if df_sinh_vien is not None:
         add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list)  # Thêm dữ liệu vào SQLite
-        
+
         # Xóa dữ liệu hiện tại trong Treeview
         for row in tree.get_children():
             tree.delete(row)
-        
+
         # Thêm cột Đợt, Mã lớp và Tên môn học vào DataFrame
         df_sinh_vien['Đợt'] = dot
         df_sinh_vien['Mã lớp'] = ma_lop
         df_sinh_vien['Tên môn học'] = ten_mon_hoc
-        
+
         # Loại bỏ cột email nếu tồn tại
         if 'email_student' in df_sinh_vien.columns:
             df_sinh_vien = df_sinh_vien.drop(columns=['email_student'])
 
+        # Chọn các cột cần hiển thị
+        columns_to_show = ['MSSV', 'Họ đệm', 'Tên', 'Giới tính', 'Ngày sinh', 'Vắng có phép', 
+                           'Vắng không phép', 'Tổng số tiết', '(%) vắng', 'Tổng buổi vắng', 
+                           'Đợt', 'Mã lớp', 'Tên môn học']
+
         # Hiển thị dữ liệu đã tải vào Treeview với cột STT
         for index, row in df_sinh_vien.iterrows():
-            # Tính STT độc lập với df_sinh_vien
             stt = len(tree.get_children()) + 1  # Lấy số lượng hàng hiện tại trong Treeview và cộng thêm 1
-            tree.insert('', 'end', values=[stt] + list(row))
+            tree.insert('', 'end', values=[stt] + list(row[columns_to_show]))
 
 def refresh_treeview(tree):
     # Xóa dữ liệu hiện tại trong treeview
@@ -487,6 +504,59 @@ def delete_student(tree):
     refresh_treeview(tree)  # Cập nhật Treeview
     messagebox.showinfo("Thành công", "Đã xóa sinh viên thành công.")
 
+def view_details(tree):
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    selected_item = tree.selection()
+    if selected_item:
+        item_data = tree.item(selected_item, 'values')
+        mssv = item_data[1]  # Lấy MSSV từ dữ liệu đã chọn
+        
+        # Truy vấn thông tin sinh viên từ bảng students
+        query = '''
+            SELECT ho_dem, ten, gioi_tinh, ngay_sinh, dot, ma_lop, ten_mon_hoc,
+                "vang_co_phep", "vang_khong_phep", "tong_so_tiet", ty_le_vang, tong_buoi_vang,
+                "11/06/2024", "18/06/2024", "25/06/2024", 
+                "02/07/2024", "09/07/2024", "23/07/2024"
+            FROM students
+            WHERE mssv = ?
+        '''
+        cursor.execute(query, (mssv,))
+        details_data = cursor.fetchone()
+
+        if details_data:
+            # Tạo danh sách thời gian nghỉ
+            time_off = []
+            date_columns = ["11/06/2024", "18/06/2024", "25/06/2024", 
+                            "02/07/2024", "09/07/2024", "23/07/2024"]
+            for i, date in enumerate(date_columns, start=12):  # Các cột ngày bắt đầu từ vị trí 12
+                if details_data[i] in ["K", "P"]:  # Kiểm tra nếu giá trị là 'K' hoặc 'P'
+                    time_off.append(date)
+
+            # Tạo chuỗi chi tiết thông tin sinh viên
+            details = (
+                f"MSSV: {mssv}\n"
+                f"Họ tên: {details_data[0]} {details_data[1]}\n"
+                f"Giới tính: {details_data[2]}\n"
+                f"Ngày sinh: {details_data[3]}\n"
+                f"Đợt: {details_data[4]}\n"
+                f"Mã lớp: {details_data[5]}\n"
+                f"Tên môn học: {details_data[6]}\n"
+                f"Số tiết nghỉ có phép: {details_data[7]}\n"
+                f"Số tiết nghỉ không phép: {details_data[8]}\n"
+                f"Tổng số tiết: {details_data[9]}\n"
+                f"Tỷ lệ vắng: {details_data[10]}%\n"
+                f"Tổng buổi vắng: {details_data[11]}\n"
+                f"Thời gian nghỉ: {', '.join(time_off) if time_off else 'Không có'}"
+            )
+            messagebox.showinfo("Chi tiết thông tin sinh viên", details)
+        else:
+            messagebox.showerror("Lỗi", "Không tìm thấy thông tin sinh viên.")
+    else:
+        messagebox.showwarning("Cảnh báo", "Vui lòng chọn một sinh viên để xem chi tiết.")
+
+    conn.close()  # Đóng kết nối
+
 def sort_students_by_absences(tree):
     # Xóa dữ liệu hiện tại trong treeview
     for item in tree.get_children():
@@ -721,7 +791,6 @@ def send_email(to_address, subject, message):
     except Exception as e:
         print(f"Failed to send email to {to_address}: {e}")
 
-
 def send_warning_emails():
     """Check and send warning emails for students."""
     # Connect to SQLite database
@@ -855,7 +924,7 @@ def start_scheduler():
         else:
             print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
         
-        time.sleep(10)  # Kiểm tra mỗi 60 giây
+        time.sleep(60)  # Kiểm tra mỗi 60 giây
            
 def load_and_summarize_students(tree):
     global summary_file
@@ -1059,7 +1128,7 @@ def enable_buttons():
     student_chart_button.config(state=NORMAL)
     absence_types_chart_button.config(state=NORMAL)
     send_warning_email_button.config(state=NORMAL)
-
+    view_detail_button.config(state=NORMAL)
 # Cập nhật khi tải file thành công
 def load_and_enable():
     load_from_excel_to_treeview(tree)
@@ -1158,7 +1227,7 @@ def main():
     global df_sinh_vien, ma_lop, ten_mon_hoc, summary_file
     global chart_frame 
     global tree  # Declare tree as a global variable
-    global add_button, edit_button, delete_button, sort_button, student_chart_button, absence_types_chart_button, send_warning_email_button  # Declare global buttons here
+    global add_button, edit_button, delete_button, sort_button, student_chart_button, absence_types_chart_button, send_warning_email_button, view_detail_button
     root = Tk()
     root.title("Quản Lý Sinh Viên")
     
@@ -1166,7 +1235,7 @@ def main():
     root.configure(bg="#F2D0D3")  # Màu nền chính
 
     # Thêm logo vào tiêu đề của ứng dụng
-    logo_icon = Image.open("Test/logoSGu.png")
+    logo_icon = Image.open("Excercise\logoSGu.png")
     logo_icon = logo_icon.resize((32, 32), Image.LANCZOS)
     logo_icon_photo = ImageTk.PhotoImage(logo_icon)
     root.iconphoto(False, logo_icon_photo)
@@ -1179,7 +1248,7 @@ def main():
     style.configure("TButton", font=("Times New Roman", 10), padding=6)
 
     # Thêm logo vào giao diện
-    logo_image = Image.open("Test/logocnttsgu.png")
+    logo_image = Image.open("Excercise\logocnttsgu.png")
     logo_image = logo_image.resize((240, 50), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_image)
     logo_label = Label(root, image=logo_photo, bg="#F2D0D3")  # Màu nền logo
@@ -1247,8 +1316,8 @@ def main():
     send_warning_email_button = Button(left_frame, text="Gửi Email cảnh báo", command=send_warning_emails, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     send_warning_email_button.pack(anchor='w', pady=5, fill='x')
 
-    refresh_button = Button(left_frame, text="Refresh", command=lambda: refresh_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
-    refresh_button.pack(anchor='w', pady=5, fill='x')
+    view_detail_button = Button(left_frame, text="Xem Chi Tiết", command=lambda: view_details(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
+    view_detail_button.pack(anchor='w', pady=5, fill='x')
 
     # Các nút nằm ở giữa
     student_chart_button = Button(center_frame, text="Biểu đồ cột", command=show_student_chart, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
@@ -1262,6 +1331,9 @@ def main():
 
     send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp", command=lambda: send_email_with_attachment(summary_file) if summary_file else print("Không có tệp tóm tắt để gửi!"), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     send_summary_email_button.pack(anchor='center', pady=10)
+    
+    refresh_button = Button(center_frame, text="Refresh", command=lambda: refresh_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    refresh_button.pack(anchor='center', pady=10)
     
     initialize_database()
     
