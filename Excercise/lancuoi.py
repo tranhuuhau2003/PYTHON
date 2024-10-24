@@ -14,9 +14,12 @@ from tkinter import Frame, Tk
 from PIL import Image, ImageTk
 from tkinter import Label, Entry, Button,  Radiobutton, IntVar
 import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.figure import Figure
+from matplotlib import rcParams
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import schedule
+import time
+import threading
+
 
 # Biến toàn cục lưu trữ dữ liệu sinh viên
 global df_sinh_vien, ma_lop, ten_mon_hoc
@@ -74,7 +77,7 @@ def load_data():
         return df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list
     except Exception as e:
         print(f"Lỗi khi đọc dữ liệu từ Excel: {e}")
-        return None, None, None, None
+        return None, None, None, None, None
     
 def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
     try:
@@ -119,7 +122,7 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tbm (
                 mssv TEXT PRIMARY KEY,
-                email_tbm TEXT  -- Email của tổng bộ môn
+                email_tbm TEXT  -- Email của trưởng bộ môn
             )
         ''')
         
@@ -156,36 +159,63 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
 
             except Exception as e:
                 print(f"Lỗi khi thêm sinh viên {row['MSSV']}: {e}")
-
-
         
         # Thêm dữ liệu vào bảng students
         for mssv in mssv_list:
-            email_student = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho phụ huynh
+            email_student = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho phụ huynh
             cursor.execute('UPDATE students SET email_student = ? WHERE mssv = ?', (email_student, mssv))
             
-     
+        # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
+        cursor.execute("DELETE FROM parents")
         # Thêm dữ liệu vào bảng parents
         for mssv in mssv_list:
-            email_ph = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho phụ huynh
+            email_ph = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho phụ huynh
             cursor.execute('INSERT OR IGNORE INTO parents (mssv, email_ph) VALUES (?, ?)', (mssv, email_ph))
 
+        # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
+        cursor.execute("DELETE FROM teachers")
         # Thêm dữ liệu vào bảng teachers
         for mssv in mssv_list:
-            email_gvcn = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
+            email_gvcn = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
             cursor.execute('INSERT OR IGNORE INTO teachers (mssv, email_gvcn) VALUES (?, ?)', (mssv, email_gvcn))
-
+            
+        # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
+        cursor.execute("DELETE FROM tbm")
         # Thêm dữ liệu vào bảng tbm
         for mssv in mssv_list:
-            email_tbm = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
+            email_tbm = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
             cursor.execute('INSERT OR IGNORE INTO tbm (mssv, email_tbm) VALUES (?, ?)', (mssv, email_tbm))
 
-        
-
-        conn.commit()
+        conn.commit()   
         conn.close()
     except Exception as e:
         print(f"Lỗi khi thêm dữ liệu vào SQLite: {e}")
+
+
+def clear_table():
+    # Kết nối đến cơ sở dữ liệu (thay đổi tên tệp cơ sở dữ liệu nếu cần)
+    conn = sqlite3.connect('students.db')  
+    cursor = conn.cursor()
+    
+    try:
+        # Xóa dữ liệu trong bảng students
+        cursor.execute("DELETE FROM students")
+        
+        # Xóa dữ liệu trong bảng parents
+        cursor.execute("DELETE FROM parents")
+        
+        # Xóa dữ liệu trong bảng teachers
+        cursor.execute("DELETE FROM teachers")
+
+        # Xác nhận thay đổi
+        conn.commit()
+        print("Dữ liệu đã được xóa thành công từ các bảng.")
+    except Exception as e:
+        print(f"Đã xảy ra lỗi khi xóa dữ liệu: {e}")
+    finally:
+        # Đóng kết nối
+        cursor.close()
+        conn.close()
 
 def load_from_excel_to_treeview(tree):
     df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list = load_data()
@@ -509,7 +539,7 @@ def sort_students_by_absences(tree):
     tree.tag_configure('highlight', foreground='red')
 
     conn.close()
-    
+
 # Hàm tìm kiếm sinh viên theo nhiều tiêu chí
 def search_students(tree, search_by, search_value):
     # Xóa dữ liệu hiện tại trong treeview
@@ -528,9 +558,6 @@ def search_students(tree, search_by, search_value):
         search_value = '%' + search_value.strip() + '%'
     elif search_by == "Tên":
         query += "(ho_dem || ' ' || ten) LIKE ?"
-        search_value = '%' + search_value.strip() + '%'
-    elif search_by == "Lớp":
-        query += "ma_lop LIKE ?"
         search_value = '%' + search_value.strip() + '%'
     elif search_by == "Tỷ lệ vắng":
         try:
@@ -572,19 +599,15 @@ def search_students(tree, search_by, search_value):
         stt += 1
 
     conn.close()
-# Thêm giao diện tìm kiếm vào hệ thống chính
 
+# Thêm giao diện tìm kiếm vào hệ thống chính
 def add_search_interface(center_frame, tree):
-    search_frame = Frame(center_frame, bg="#B6CFB6", bd=1)  # Giảm chiều cao bằng cách giảm bd
+    search_frame = Frame(center_frame, bg="#F2A2C0", bd=1)  # Giảm chiều cao bằng cách giảm bd
     search_frame.pack(side='top', fill='x', padx=5, pady=3)
 
-    # Dropdown chọn tiêu chí tìm kiếm
-    # search_by_label = Label(search_frame, text="Tìm kiếm theo:", bg="#B6CFB6", font=("Times New Roman", 14))  
-    # search_by_label.pack(side='left', padx=2)
-
     search_by_var = StringVar(value="MSSV")
-    search_by_menu = OptionMenu(search_frame, search_by_var, "MSSV", "Tên", "Mã Lớp", "Tỷ lệ vắng")
-    search_by_menu.config(bg="#A9EDE9")
+    search_by_menu = OptionMenu(search_frame, search_by_var, "MSSV", "Tên", "Tỷ lệ vắng")
+    search_by_menu.config(bg="#F2A2C0")
     search_by_menu.pack(side='left', padx=2)
 
     # Entry tìm kiếm
@@ -592,7 +615,7 @@ def add_search_interface(center_frame, tree):
     search_entry.pack(side='left', padx=2)
 
     # Nút tìm kiếm
-    search_button = Button(search_frame, text="Tìm", command=lambda: search_students(tree, search_by_var.get(), search_entry.get()), bg="#A9EDE9", font=("Times New Roman", 10))
+    search_button = Button(search_frame, text="Tìm", command=lambda: search_students(tree, search_by_var.get(), search_entry.get()), bg="#F2A2C0", font=("Times New Roman", 10))
     search_button.pack(side='left', padx=2)
 
 # Hàm khởi tạo cơ sở dữ liệu tonghopsv
@@ -653,7 +676,7 @@ def save_students_to_sqlite(df):
 
 def send_email_with_ssl(summary_file):
     sender_email = "carotneee4@gmail.com"
-    app_password = "bgjx tavb oxba ickr"  # Thay bằng mật khẩu ứng dụng của bạn
+    app_password = "bgjx tavb oxba ickr"  
     receiver_email = "vokhanhlinh04112k3@gmail.com"
     subject = "Tổng hợp sinh viên vắng nhiều"
     body = "Đính kèm là danh sách sinh viên vắng >= 50%."
@@ -675,7 +698,7 @@ def send_email_with_ssl(summary_file):
 def send_email(to_address, subject, message):
     """Send email to the recipient."""
     from_address = "carotneee4@gmail.com"
-    password = "bgjx tavb oxba ickr"  # Make sure to use an app-specific password for Gmail if 2FA is enabled.
+    password = "bgjx tavb oxba ickr"  
     
     # Initialize email
     msg = MIMEMultipart()
@@ -698,6 +721,7 @@ def send_email(to_address, subject, message):
     except Exception as e:
         print(f"Failed to send email to {to_address}: {e}")
 
+
 def send_warning_emails():
     """Check and send warning emails for students."""
     # Connect to SQLite database
@@ -711,6 +735,9 @@ def send_warning_emails():
         """
         cursor.execute(query)
         records = cursor.fetchall()
+
+        # Biến lưu trữ địa chỉ email đã gửi
+        sent_emails = set()
 
         for row in records:
             mssv, ho_dem, ten, vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang = row
@@ -729,15 +756,27 @@ def send_warning_emails():
                 send_email(parent_email, subject, message)
                 send_email(homeroom_teacher_email, subject, message)
                 send_email(tbm_email, subject, message)
+
+                # Thêm vào tập hợp địa chỉ email đã gửi
+                sent_emails.update([student_email, parent_email, homeroom_teacher_email, tbm_email])
+
             elif ty_le_vang >= 20:
                 subject = "Cảnh báo học vụ: Vắng học quá 20%"
                 message = f"Sinh viên {ho_dem} {ten} đã vắng hơn 20% số buổi học."
                 send_email(student_email, subject, message)
 
+                # Thêm vào tập hợp địa chỉ email đã gửi
+                sent_emails.add(student_email)
+
+        # Thông báo chỉ một lần sau khi hoàn thành gửi email
+        if sent_emails:
+            email_list = ', '.join(sent_emails)  # Chuyển đổi tập hợp thành chuỗi
+            messagebox.showinfo("Email Success", f"Email đã gửi thành công tới: {email_list}")
+
     except Exception as e:
-        print(f"Lỗi khi gửi email cảnh báo: {e}")
+        messagebox.showerror("Email Error", f"Có lỗi xảy ra khi gửi email: {e}")  # Thông báo lỗi
     finally:
-        connection.close()  # Ensure the database connection is closed
+        connection.close()
 
 def get_student_email(cursor, mssv):
     """Retrieve student email from the database based on MSSV."""
@@ -768,19 +807,17 @@ def get_tbm_email(cursor, mssv):
     return result[0] if result else None
 
 def send_email_with_attachment(summary_file):
-    # Cấu hình thông tin email
-    sender_email = "carotneee4@gmail.com" # Địa chỉ email của bạn
-    sender_password ="bgjx tavb oxba ickr" # Mật khẩu email của bạn
-    recipient_email = "tranhuuhauthh@gmail.com"  # Địa chỉ email của người nhận
+    sender_email = "carotneee4@gmail.com" 
+    sender_password ="bgjx tavb oxba ickr"
+    recipient_email = "vokhanhlinh04112k3@gmail.com"  
 
-    # Tạo một đối tượng MIMEMultipart
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Subject'] = "Báo cáo sinh viên vắng nhiều"
 
     # Tạo phần thân email
-    body = "Xin chào,\n\nĐây là báo cáo tổng hợp sinh viên vắng nhiều.\n\nTrân trọng!"
+    body = "Đây là báo cáo tổng hợp sinh viên vắng nhiều."
     msg.attach(MIMEText(body, 'plain'))
 
     # Đính kèm tệp Excel
@@ -793,17 +830,33 @@ def send_email_with_attachment(summary_file):
 
     # Gửi email
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:  # Thay 'smtp.example.com' với máy chủ SMTP của bạn
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:  
             server.starttls()  # Bật chế độ bảo mật
             server.login(sender_email, sender_password)
             server.send_message(msg)
-            print("Email đã được gửi thành công!")
+            print("Gửi email thành công!")
+            messagebox.showinfo("Email Success", f"Email đã gửi thành công tới {recipient_email}")  # Thông báo thành công
     except Exception as e:
         print(f"Có lỗi xảy ra khi gửi email: {e}")
+        messagebox.showerror("Email Error", f"Có lỗi xảy ra khi gửi email: {e}")  # Thông báo lỗi
     finally:
         attachment.close()
+ 
+def start_scheduler():
+    while True:
+        now = datetime.now()
+        # Kiểm tra xem có phải là ngày 24 và thời gian là 20:05 hay không
+        if (now.day == 1 or now.day == 24) and now.hour == 22 and now.minute == 27:
+            print("Đủ điều kiện gửi email. Gửi email...")
+            
+            # Gọi hàm send_email_with_attachment với đường dẫn tệp
+            send_email_with_attachment(summary_file)
+
+        else:
+            print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
         
-# Hàm tải và tổng hợp sinh viên
+        time.sleep(10)  # Kiểm tra mỗi 60 giây
+           
 def load_and_summarize_students(tree):
     global summary_file
     # Xóa tất cả mục trong giao diện (tree) ngay từ đầu
@@ -883,6 +936,9 @@ def load_and_summarize_students(tree):
     absent_students.to_excel(summary_file, index=False)
     print(f"Tệp tóm tắt đã được lưu tại: {summary_file}")
     
+# Đặt font mặc định là Times New Roman cho biểu đồ
+rcParams['font.family'] = 'Times New Roman'    
+    
 # dùng để vẽ biểu đồ tỷ lệ vắng
 def get_data_from_sqlite():
     conn = sqlite3.connect('students.db')
@@ -901,33 +957,47 @@ def get_data_from_sqlite():
     return data, class_data
 
 def plot_student_absence_chart(student_data):
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(16, 8)) 
+    
+    # Tên sinh viên
     names = [row[1] for row in student_data]
+    # Tỷ lệ vắng
     absence_rates = [row[2] for row in student_data]
 
-    # Vẽ biểu đồ cột ngang
-    ax.barh(names, absence_rates, color='orange')
+    # Vẽ biểu đồ cột dọc
+    ax.bar(names, absence_rates, color='pink', width=0.4)
 
-    # Thiết lập nhãn cho trục x và tiêu đề
-    ax.set_xlabel('Tỷ lệ vắng (%)', fontsize=10)  # Kích thước chữ nhãn trục x
-    ax.set_title('Tỷ lệ vắng của sinh viên', fontsize=12)  # Kích thước chữ tiêu đề
+    # Thiết lập nhãn cho trục y và tiêu đề với font Times New Roman
+    ax.set_ylabel('Tỷ lệ vắng (%)', fontsize=10)
+    ax.set_title('Tỷ lệ vắng của sinh viên', fontsize=12)
 
-    # Thiết lập kích thước chữ cho nhãn cột
-    ax.tick_params(axis='y', labelsize=6)  # Kích thước chữ cho nhãn trên trục y
+    # Xoay nhãn trục x và chỉnh kích thước
+    ax.tick_params(axis='x', labelsize=8, rotation=45)
+
+    # Đặt nhãn tương ứng với các vị trí của cột
+    ax.set_xticks(range(len(names)))  # Đảm bảo các nhãn trên trục x được đặt tại đúng vị trí
+    ax.set_xticklabels(names, rotation=45, ha="right")
+
+    # Tạo thêm khoảng trống giữa các cột
+    ax.margins(x=0.1)  # Giảm bớt khoảng cách giữa các cột và lề để khớp tên và cột
+
+    # Sử dụng tight_layout để điều chỉnh lại bố cục
+    plt.tight_layout()
 
     return fig
 
 def show_student_chart():
-    global chart_frame  # Sử dụng biến toàn cục
-
     student_data, _ = get_data_from_sqlite()
     fig = plot_student_absence_chart(student_data)
+    
+    # Mở cửa sổ mới để hiển thị biểu đồ
+    new_window = tk.Toplevel()
+    new_window.title("Biểu đồ tỷ lệ vắng sinh viên")
+    window_width = 1300  # Chiều rộng của cửa sổ
+    window_height = 700  # Chiều cao của cửa sổ
+    new_window.geometry(f"{window_width}x{window_height}")
 
-    # Xóa các widget hiện tại trong chart_frame
-    for widget in chart_frame.winfo_children():
-        widget.destroy()
-
-    canvas = FigureCanvasTkAgg(fig, master=chart_frame)
+    canvas = FigureCanvasTkAgg(fig, master=new_window)
     canvas.draw()
     canvas.get_tk_widget().pack(fill='both', expand=True)
 
@@ -948,45 +1018,155 @@ def get_absence_types_data():
     return absence_data
 
 def plot_absence_types_chart(absence_data):
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(6, 6))  # Điều chỉnh kích thước biểu đồ tròn
 
     labels = ['Vắng có phép', 'Vắng không phép']
     values = [absence_data[0], absence_data[1]]
+    colors = ['#A0B4F2', 'pink']  
 
-    # Vẽ biểu đồ cột
-    ax.bar(labels, values, color=['green', 'red'])
+    # Vẽ biểu đồ tròn
+    ax.pie(values, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
 
-    # Thiết lập nhãn cho trục y và tiêu đề
-    ax.set_ylabel('Số lượng', fontsize=10)  # Kích thước chữ nhãn trục y
-    ax.set_title('Số lượng vắng có phép và vắng không phép', fontsize=12)  # Kích thước chữ tiêu đề
+    # Đảm bảo biểu đồ tròn là hình tròn (không bị méo)
+    ax.axis('equal')
+
+    # Thiết lập tiêu đề
+    ax.set_title('Tỷ lệ vắng có phép và vắng không phép', fontsize=12)
 
     return fig
 
 def show_absence_types_chart():
-    global chart_frame  # Sử dụng biến toàn cục
-
     absence_data = get_absence_types_data()
     fig = plot_absence_types_chart(absence_data)
 
-    # Xóa các widget hiện tại trong chart_frame
-    for widget in chart_frame.winfo_children():
-        widget.destroy()
+    # Mở cửa sổ mới để hiển thị biểu đồ
+    new_window = tk.Toplevel()
+    new_window.title("Biểu đồ vắng có phép và vắng không phép")
+    window_width = 600  # Chiều rộng của cửa sổ
+    window_height = 600  # Chiều cao của cửa sổ
+    new_window.geometry(f"{window_width}x{window_height}")
 
-    canvas = FigureCanvasTkAgg(fig, master=chart_frame)
+    canvas = FigureCanvasTkAgg(fig, master=new_window)
     canvas.draw()
     canvas.get_tk_widget().pack(fill='both', expand=True)
+    
+# Chỉnh sửa để kích hoạt các nút sau khi tải file
+def enable_buttons():
+    add_button.config(state=NORMAL)
+    edit_button.config(state=NORMAL)
+    delete_button.config(state=NORMAL)
+    sort_button.config(state=NORMAL)
+    student_chart_button.config(state=NORMAL)
+    absence_types_chart_button.config(state=NORMAL)
+    send_warning_email_button.config(state=NORMAL)
+
+# Cập nhật khi tải file thành công
+def load_and_enable():
+    load_from_excel_to_treeview(tree)
+    enable_buttons()  # Kích hoạt các nút sau khi tải file
+
+def initialize_user_database():
+    connection = sqlite3.connect('students.db')
+    cursor = connection.cursor()
+
+    # Tạo bảng users với ràng buộc UNIQUE cho username
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL
+        )
+    ''')
+
+    # Kiểm tra xem người dùng admin đã tồn tại chưa
+    cursor.execute('SELECT * FROM users WHERE username = ?', ('123',))
+    result = cursor.fetchone()
+
+    # Nếu người dùng admin chưa tồn tại, thì thêm vào
+    if result is None:
+        cursor.execute('''
+            INSERT INTO users (username, password) 
+            VALUES (?, ?)
+        ''', ('123', '123'))
+
+    connection.commit()
+    connection.close()
+
+def login():
+    username = username_entry.get()
+    password = password_entry.get()
+
+    # Connect to SQLite database
+    connection = sqlite3.connect('students.db')
+    cursor = connection.cursor()
+
+    # Query to check if user exists
+    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    result = cursor.fetchone()
+
+    if result:
+        messagebox.showinfo("Login Successful", "Welcome!")
+        login_window.destroy()  # Close login window and open the main app
+        main()  # Call the main app function after successful login
+    else:
+        messagebox.showerror("Login Failed", "Invalid username or password")
+    
+    connection.close()
+
+# Hàm hiển thị form đăng nhập
+def show_login_form():
+    global login_window, username_entry, password_entry
+
+    login_window = Tk()
+    login_window.title("Login")
+
+    # Thiết lập kích thước và căn giữa cửa sổ đăng nhập
+    window_width = 400
+    window_height = 300
+    screen_width = login_window.winfo_screenwidth()
+    screen_height = login_window.winfo_screenheight()
+    position_top = int(screen_height/2 - window_height/2)
+    position_right = int(screen_width/2 - window_width/2)
+    login_window.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
+    login_window.configure(bg="#F2D0D3")  # Màu nền xám nhạt
+
+    # Thiết kế nhãn tiêu đề
+    title_label = Label(login_window, text="Login", font=("Times New Roman", 24, "bold"), bg="#F2D0D3", fg="#333333")
+    title_label.pack(pady=20)
+
+    # Nhãn và ô nhập cho Username
+    username_label = Label(login_window, text="Username", font=("Times New Roman", 12), bg="#F2D0D3", fg="#333333")
+    username_label.pack(pady=5)
+    username_entry = Entry(login_window, font=("Times New Roman", 12), width=30, bd=2, relief="groove")
+    username_entry.pack()
+
+    # Nhãn và ô nhập cho Password
+    password_label = Label(login_window, text="Password", font=("Times New Roman", 12), bg="#F2D0D3", fg="#333333")
+    password_label.pack(pady=5)
+    password_entry = Entry(login_window, font=("Times New Roman", 12), width=30, bd=2, relief="groove", show="*")
+    password_entry.pack()
+
+    # Nút đăng nhập
+    # Nút đăng nhập (giống nút load_button)
+    login_button = Button(login_window, text="Login", command=login, bg="#F2A2C0", fg='black', font=("Times New Roman", 10))  
+    login_button.pack(pady=40)  # Căn giống với load_button
+
+    # Vòng lặp giao diện
+    login_window.mainloop()
     
 def main():
     global df_sinh_vien, ma_lop, ten_mon_hoc, summary_file
     global chart_frame 
+    global tree  # Declare tree as a global variable
+    global add_button, edit_button, delete_button, sort_button, student_chart_button, absence_types_chart_button, send_warning_email_button  # Declare global buttons here
     root = Tk()
     root.title("Quản Lý Sinh Viên")
     
     # Thay đổi màu nền cho cửa sổ chính
-    root.configure(bg="#B6CFB6")
+    root.configure(bg="#F2D0D3")  # Màu nền chính
 
     # Thêm logo vào tiêu đề của ứng dụng
-    logo_icon = Image.open("Excercise\logoSGu.png")
+    logo_icon = Image.open("Test/logoSGu.png")
     logo_icon = logo_icon.resize((32, 32), Image.LANCZOS)
     logo_icon_photo = ImageTk.PhotoImage(logo_icon)
     root.iconphoto(False, logo_icon_photo)
@@ -999,10 +1179,10 @@ def main():
     style.configure("TButton", font=("Times New Roman", 10), padding=6)
 
     # Thêm logo vào giao diện
-    logo_image = Image.open("Excercise\logocnttsgu.png")
+    logo_image = Image.open("Test/logocnttsgu.png")
     logo_image = logo_image.resize((240, 50), Image.LANCZOS)
     logo_photo = ImageTk.PhotoImage(logo_image)
-    logo_label = Label(root, image=logo_photo, bg="#B6CFB6")
+    logo_label = Label(root, image=logo_photo, bg="#F2D0D3")  # Màu nền logo
     logo_label.image = logo_photo
     logo_label.pack(side=TOP, pady=10)
 
@@ -1035,66 +1215,80 @@ def main():
     tree.pack(fill='both', expand=True, padx=10, pady=10)
 
     # Tạo frame chứa các nút bên trái
-    left_frame = Frame(root, bg="#B6CFB6")
+    left_frame = Frame(root, bg="#F2D0D3")  # Màu nền frame bên trái
     left_frame.pack(side=LEFT, padx=10, pady=10, fill='y')
 
     # Tạo frame chứa các nút ở giữa
-    center_frame = Frame(root, bg="#B6CFB6")
+    center_frame = Frame(root, bg="#F2D0D3")  # Màu nền frame ở giữa
     center_frame.pack(side=LEFT, padx=10, pady=10, fill='y')
 
     # Thêm giao diện tìm kiếm vào center_frame trước các nút khác
     add_search_interface(center_frame, tree)  # Thêm interface tìm kiếm lên trên cùng
 
     # Các nút nằm bên trái, với độ rộng cố định
-    button_width = 35
-    button_color = "#A9EDE9"
+    button_width = 20
+    button_color = "#F2A2C0"  # Thay đổi màu các nút
 
-    load_button = Button(left_frame, text="Tải dữ liệu từ Excel", command=lambda: load_from_excel_to_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    load_button = Button(left_frame, text="Tải file", command=lambda: load_from_excel_to_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     load_button.pack(anchor='w', pady=5, fill='x')
 
-    add_button = Button(left_frame, text="Thêm sinh viên", command=lambda: add_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    add_button = Button(left_frame, text="Thêm sinh viên", command=lambda: add_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     add_button.pack(anchor='w', pady=5, fill='x')
 
-    edit_button = Button(left_frame, text="Chỉnh sửa sinh viên", command=lambda: edit_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    edit_button = Button(left_frame, text="Sửa sinh viên", command=lambda: edit_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     edit_button.pack(anchor='w', pady=5, fill='x')
 
-    delete_button = Button(left_frame, text="Xóa sinh viên", command=lambda: delete_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    delete_button = Button(left_frame, text="Xóa sinh viên", command=lambda: delete_student(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     delete_button.pack(anchor='w', pady=5, fill='x')
 
-    sort_button = Button(left_frame, text="Sắp xếp sinh viên theo tổng buổi vắng", command=lambda: sort_students_by_absences(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    sort_button = Button(left_frame, text="Sắp xếp", command=lambda: sort_students_by_absences(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     sort_button.pack(anchor='w', pady=5, fill='x')
 
-    send_warning_email_button = Button(left_frame, text="Gửi Email cảnh báo học vụ", command=send_warning_emails, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    send_warning_email_button = Button(left_frame, text="Gửi Email cảnh báo", command=send_warning_emails, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     send_warning_email_button.pack(anchor='w', pady=5, fill='x')
 
     refresh_button = Button(left_frame, text="Refresh", command=lambda: refresh_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     refresh_button.pack(anchor='w', pady=5, fill='x')
 
     # Các nút nằm ở giữa
-    student_chart_button = Button(center_frame, text="Hiển thị biểu đồ sinh viên", command=show_student_chart, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    student_chart_button = Button(center_frame, text="Biểu đồ cột", command=show_student_chart, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     student_chart_button.pack(anchor='center', pady=10)
 
-    absence_types_chart_button = Button(center_frame, text="Hiển thị biểu đồ vắng", command=show_absence_types_chart, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    absence_types_chart_button = Button(center_frame, text="Biểu đồ vắng", command=show_absence_types_chart, width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10), state=DISABLED)
     absence_types_chart_button.pack(anchor='center', pady=10)
 
-    summarize_button = Button(center_frame, text="Tổng hợp thông tin sinh viên", command=lambda: load_and_summarize_students(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    summarize_button = Button(center_frame, text="Tổng hợp file", command=lambda: load_and_summarize_students(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     summarize_button.pack(anchor='center', pady=10)
 
-    send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp thông tin", command=lambda: send_email_with_attachment(summary_file) if summary_file else print("Không có tệp tóm tắt để gửi!"), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp", command=lambda: send_email_with_attachment(summary_file) if summary_file else print("Không có tệp tóm tắt để gửi!"), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     send_summary_email_button.pack(anchor='center', pady=10)
     
     initialize_database()
     
+    clear_table()
+    
     # Khởi tạo chart_frame
-    chart_frame = Frame(root, bg="#B6CFB6")
+    chart_frame = Frame(root, bg="#F2D0D3")  # Màu nền chart_frame
     chart_frame.pack(fill='both', expand=True)
     
+    # Gán hàm cho nút tải file
+    load_button.config(command=load_and_enable)
+    
     root.mainloop()
+    
 
 if __name__ == "__main__":
-    main()
+    # Khởi tạo cơ sở dữ liệu người dùng
+    initialize_user_database()
+    
+    # Tạo một luồng riêng cho chức năng gửi email tự động
+    email_thread = threading.Thread(target=start_scheduler)
+    email_thread.daemon = True  # Đảm bảo chương trình chính dừng, luồng này cũng sẽ dừng
+    email_thread.start()
 
+    # Hiển thị form đăng nhập
+    show_login_form()
 
-
-
-
+    # Để giữ cho chương trình hoạt động, có thể cần một vòng lặp chính
+    while True:
+        time.sleep(1)
