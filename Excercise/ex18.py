@@ -656,39 +656,39 @@ class ExcelApp:
         else:
             messagebox.showwarning("Cảnh báo", "Vui lòng chọn một sinh viên để xem chi tiết.")
  
-    def generate_report_and_send_email(self):
-        # Tạo kết nối SQLite mới trong hàm này
-        conn = sqlite3.connect('students.db')
-        cursor = conn.cursor()
+    # def generate_report_and_send_email(self):
+    #     # Tạo kết nối SQLite mới trong hàm này
+    #     conn = sqlite3.connect('students.db')
+    #     cursor = conn.cursor()
 
-        try:
-            # Lấy dữ liệu sinh viên vắng nhiều
-            query = """
-            SELECT mssv, ho_dem, ten, gioi_tinh, ngay_sinh, vắng_có_phép, vắng_không_phép, tong_so_tiet, ty_le_vang
-            FROM students
-            WHERE ty_le_vang >= 20
-            """
+    #     try:
+    #         # Lấy dữ liệu sinh viên vắng nhiều
+    #         query = """
+    #         SELECT mssv, ho_dem, ten, gioi_tinh, ngay_sinh, vắng_có_phép, vắng_không_phép, tong_so_tiet, ty_le_vang
+    #         FROM students
+    #         WHERE ty_le_vang >= 20
+    #         """
             
-            # Thực hiện truy vấn
-            cursor.execute(query)
-            results = cursor.fetchall()
+    #         # Thực hiện truy vấn
+    #         cursor.execute(query)
+    #         results = cursor.fetchall()
             
-            # Chuyển đổi kết quả thành DataFrame
-            columns = [column[0] for column in cursor.description]  # Lấy tên cột
-            df = pd.DataFrame(results, columns=columns)
+    #         # Chuyển đổi kết quả thành DataFrame
+    #         columns = [column[0] for column in cursor.description]  # Lấy tên cột
+    #         df = pd.DataFrame(results, columns=columns)
 
-            # Lưu dữ liệu vào file Excel
-            file_path = 'tong_hop_sinh_vien_vang_nhieu.xlsx'
-            df.to_excel(file_path, index=False)
+    #         # Lưu dữ liệu vào file Excel
+    #         file_path = 'tong_hop_sinh_vien_vang_nhieu.xlsx'
+    #         df.to_excel(file_path, index=False)
 
-            # Gửi email với tệp đính kèm
-            self.send_email_with_attachment(file_path)  # Đảm bảo rằng phương thức này có sẵn trong lớp của bạn
+    #         # Gửi email với tệp đính kèm
+    #         self.send_email_with_attachment(file_path)  # Đảm bảo rằng phương thức này có sẵn trong lớp của bạn
 
-        except Exception as e:
-            print(f"Có lỗi xảy ra trong quá trình tạo báo cáo và gửi email: {e}")
+    #     except Exception as e:
+    #         print(f"Có lỗi xảy ra trong quá trình tạo báo cáo và gửi email: {e}")
 
-        finally:
-            conn.close()  # Đảm bảo đóng kết nối
+    #     finally:
+    #         conn.close()  # Đảm bảo đóng kết nối
 
     def create_tonghop_table(self):
      

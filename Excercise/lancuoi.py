@@ -19,6 +19,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import schedule
 import time
 import threading
+import imaplib
+import email
+from email.header import decode_header
+import os
+import pandas as pd
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime
+import re  # Thêm dòng này
+
 
 
 # Biến toàn cục lưu trữ dữ liệu sinh viên
@@ -175,28 +186,28 @@ def add_data_to_sqlite(df_sinh_vien, dot, ma_lop, ten_mon_hoc, mssv_list):
         
         # Thêm dữ liệu vào bảng students
         for mssv in mssv_list:
-            email_student = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho phụ huynh
+            email_student = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho phụ huynh
             cursor.execute('UPDATE students SET email_student = ? WHERE mssv = ?', (email_student, mssv))
             
         # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
         cursor.execute("DELETE FROM parents")
         # Thêm dữ liệu vào bảng parents
         for mssv in mssv_list:
-            email_ph = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho phụ huynh
+            email_ph = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho phụ huynh
             cursor.execute('INSERT OR IGNORE INTO parents (mssv, email_ph) VALUES (?, ?)', (mssv, email_ph))
 
         # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
         cursor.execute("DELETE FROM teachers")
         # Thêm dữ liệu vào bảng teachers
         for mssv in mssv_list:
-            email_gvcn = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
+            email_gvcn = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
             cursor.execute('INSERT OR IGNORE INTO teachers (mssv, email_gvcn) VALUES (?, ?)', (mssv, email_gvcn))
             
         # Xóa dữ liệu cũ trước khi thêm dữ liệu mới
         cursor.execute("DELETE FROM tbm")
         # Thêm dữ liệu vào bảng tbm
         for mssv in mssv_list:
-            email_tbm = f"vokhanhlinh04112k3@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
+            email_tbm = f"tranhuuhauthh@gmail.com"  # Tạo email mẫu cho giáo viên chủ nhiệm
             cursor.execute('INSERT OR IGNORE INTO tbm (mssv, email_tbm) VALUES (?, ?)', (mssv, email_tbm))
 
         conn.commit()   
@@ -799,7 +810,7 @@ def send_warning_emails():
 
     try:
         query = """
-        SELECT mssv, ho_dem, ten, vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang
+        SELECT mssv, ho_dem, ten, ma_lop, vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang
         FROM students
         """
         cursor.execute(query)
@@ -809,7 +820,7 @@ def send_warning_emails():
         sent_emails = set()
 
         for row in records:
-            mssv, ho_dem, ten, vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang = row
+            mssv, ho_dem, ten, ma_lop, vang_co_phep, vang_khong_phep, tong_so_tiet, ty_le_vang = row
             
             # Get student and related emails
             student_email = get_student_email(cursor, mssv)
@@ -820,7 +831,7 @@ def send_warning_emails():
             # Check and send warnings based on absence rate
             if ty_le_vang >= 50:
                 subject = "Cảnh báo học vụ: Vắng học quá 50%"
-                message = f"Sinh viên {ho_dem} {ten} đã vắng hơn 50% số buổi học."
+                message = (f"Sinh viên {ho_dem} {ten} (Mã lớp: {ma_lop}) đã vắng hơn 50% số buổi học.")
                 send_email(student_email, subject, message)
                 send_email(parent_email, subject, message)
                 send_email(homeroom_teacher_email, subject, message)
@@ -831,7 +842,7 @@ def send_warning_emails():
 
             elif ty_le_vang >= 20:
                 subject = "Cảnh báo học vụ: Vắng học quá 20%"
-                message = f"Sinh viên {ho_dem} {ten} đã vắng hơn 20% số buổi học."
+                message = f"Sinh viên {ho_dem} {ten} (Mã lớp: {ma_lop}) đã vắng hơn 20% số buổi học."
                 send_email(student_email, subject, message)
 
                 # Thêm vào tập hợp địa chỉ email đã gửi
@@ -875,66 +886,19 @@ def get_tbm_email(cursor, mssv):
     result = cursor.fetchone()
     return result[0] if result else None
 
-def send_email_with_attachment(summary_file):
-    sender_email = "carotneee4@gmail.com" 
-    sender_password ="bgjx tavb oxba ickr"
-    recipient_email = "vokhanhlinh04112k3@gmail.com"  
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = recipient_email
-    msg['Subject'] = "Báo cáo sinh viên vắng nhiều"
-
-    # Tạo phần thân email
-    body = "Đây là báo cáo tổng hợp sinh viên vắng nhiều."
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Đính kèm tệp Excel
-    attachment = open(summary_file, "rb")
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(attachment.read())
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename= {summary_file}')
-    msg.attach(part)
-
-    # Gửi email
-    try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:  
-            server.starttls()  # Bật chế độ bảo mật
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            print("Gửi email thành công!")
-            messagebox.showinfo("Email Success", f"Email đã gửi thành công tới {recipient_email}")  # Thông báo thành công
-    except Exception as e:
-        print(f"Có lỗi xảy ra khi gửi email: {e}")
-        messagebox.showerror("Email Error", f"Có lỗi xảy ra khi gửi email: {e}")  # Thông báo lỗi
-    finally:
-        attachment.close()
- 
-def start_scheduler():
-    while True:
-        now = datetime.now()
-        # Kiểm tra xem có phải là ngày 24 và thời gian là 20:05 hay không
-        if (now.day == 1 or now.day == 24) and now.hour == 22 and now.minute == 27:
-            print("Đủ điều kiện gửi email. Gửi email...")
-            
-            # Gọi hàm send_email_with_attachment với đường dẫn tệp
-            send_email_with_attachment(summary_file)
-
-        else:
-            print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
-        
-        time.sleep(60)  # Kiểm tra mỗi 60 giây
-           
 def load_and_summarize_students(tree):
-    global summary_file
+    global class_codes
+    class_codes = []  # Khởi tạo danh sách để lưu mã lớp
+
     # Xóa tất cả mục trong giao diện (tree) ngay từ đầu
     for item in tree.get_children():
         tree.delete(item)
 
     excel_files = filedialog.askopenfilenames(title='Chọn các file Excel', filetypes=[("Excel files", "*.xlsx;*.xls")])
     
-    if not excel_files:
+    # Kiểm tra xem có tệp Excel hợp lệ không
+    if not excel_files or not all(os.path.exists(f) for f in excel_files):
+        print("Không có tệp Excel hợp lệ được chọn!")
         return
 
     all_data = []
@@ -993,18 +957,104 @@ def load_and_summarize_students(tree):
         
     # Hiển thị dữ liệu đã tải vào Treeview với cột STT
     for row in rows:
-        # Tính STT độc lập với df_sinh_vien
-        stt = len(tree.get_children()) + 1  # Lấy số lượng hàng hiện tại trong Treeview và cộng thêm 1
+        stt = len(tree.get_children()) + 1  # Tạo STT tự động
         tree.insert('', 'end', values=[stt] + list(row))
 
     conn.close()
 
-    # Lưu sinh viên vắng >= 50% vào file Excel mới
-    absent_students = combined_data[combined_data['ty_le_vang'] >= 50.0]
-    summary_file = 'TongHopSinhVienVangCacLop.xlsx'
-    absent_students.to_excel(summary_file, index=False)
-    print(f"Tệp tóm tắt đã được lưu tại: {summary_file}")
+    # Lưu mã lớp của các sinh viên có vắng > 50%
+    # class_codes = combined_data[combined_data['ty_le_vang'] >= 50.0]['Mã lớp'].unique().tolist()
     
+    
+def save_absent_students_to_excel(threshold=30.0):
+    global summary_file, class_codes
+
+    # Kết nối tới cơ sở dữ liệu để lấy dữ liệu sinh viên
+    conn = sqlite3.connect('tonghopsv.db')
+    cursor = conn.cursor()
+
+    # Truy vấn tất cả sinh viên trong bảng tonghopsv để lấy mã lớp
+    query_all_classes = "SELECT DISTINCT `ma_lop` FROM tonghopsv"
+    cursor.execute(query_all_classes)
+    all_class_rows = cursor.fetchall()
+
+    # Lưu mã lớp của tất cả sinh viên
+    class_codes = [row[0] for row in all_class_rows]
+    
+    # Truy vấn sinh viên có tỷ lệ vắng lớn hơn ngưỡng (threshold) để lưu vào file Excel
+    query_absent_students = f"SELECT * FROM tonghopsv WHERE ty_le_vang >= {threshold}"
+    cursor.execute(query_absent_students)
+    absent_rows = cursor.fetchall()
+
+    conn.close()
+
+    if absent_rows:
+        # Tạo DataFrame từ dữ liệu sinh viên có tỷ lệ vắng > threshold
+        df_absent_students = pd.DataFrame(absent_rows, columns=[
+            'MSSV', 'Họ đệm', 'Tên', 'Giới tính', 'Ngày sinh', 'Vắng có phép', 
+            'Vắng không phép', 'Tổng số tiết', '(%) vắng', 'Tổng buổi vắng', 
+            'Đợt', 'Mã lớp', 'Tên môn học'])
+
+        # Lưu sinh viên vắng nhiều vào tệp Excel
+        summary_file = 'TongHopSinhVienVangNhieu.xlsx'
+        df_absent_students.to_excel(summary_file, index=False)
+
+        print(f"Tệp tổng hợp sinh viên vắng nhiều đã được lưu tại: {summary_file}")
+        print(f"Mã lớp liên quan (tất cả sinh viên): {class_codes}")
+
+        # Gọi hàm gửi email với tệp Excel đính kèm
+        send_email_with_attachment(summary_file, class_codes)
+    else:
+        print("Không có sinh viên nào vượt quá ngưỡng vắng!")
+        return None, []
+
+
+def send_email_with_attachment(summary_file, class_codes):
+    sender_email = "carotneee4@gmail.com" 
+    sender_password = "bgjx tavb oxba ickr"
+    recipient_email = "tranhuuhauthh@gmail.com"
+
+    # Kiểm tra tệp trước khi gửi
+    if not summary_file or not os.path.exists(summary_file):
+        print("Không tìm thấy tệp Excel để gửi email.")
+        return
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient_email
+    msg['Subject'] = "Báo cáo sinh viên vắng nhiều"
+
+    # Tạo phần thân email
+    if class_codes:
+        body = "Đây là báo cáo tổng hợp sinh viên vắng nhiều của tất cả các lớp: " + ', '.join(class_codes)
+    else:
+        body = "Không có sinh viên nào vượt quá ngưỡng vắng."
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Đính kèm tệp Excel nếu có
+    try:
+        with open(summary_file, "rb") as attachment:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename={summary_file}')
+            msg.attach(part)
+
+        # Gửi email
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()  # Bật chế độ bảo mật
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            print("Gửi email thành công!")
+            messagebox.showinfo("Email Success", f"Email đã gửi thành công tới {recipient_email}")
+    except FileNotFoundError:
+        print("Tệp không tồn tại hoặc không thể mở.")
+        messagebox.showerror("Email Error", "Tệp không tồn tại hoặc không thể mở.")
+    except Exception as e:
+        print(f"Có lỗi xảy ra khi gửi email: {e}")
+        messagebox.showerror("Email Error", f"Có lỗi xảy ra khi gửi email: {e}")
+
 # Đặt font mặc định là Times New Roman cho biểu đồ
 rcParams['font.family'] = 'Times New Roman'    
     
@@ -1223,6 +1273,131 @@ def show_login_form():
     # Vòng lặp giao diện
     login_window.mainloop()
     
+def start_scheduler():
+    global class_codes, summary_file  # Mã lớp từ bảng tonghop
+
+    while True:
+        now = datetime.now()
+        
+        # Kiểm tra email và xử lý
+        check_emails_and_process()  # Kiểm tra email đến và xử lý
+        
+        # Kiểm tra xem có phải là ngày 1 hoặc ngày 24 và thời gian là 22:27 hay không
+        if (now.day == 1 or now.day == 25) and now.hour == 5 and now.minute == 10:
+            print("Đủ điều kiện gửi email. Gửi email...")
+
+            # Gọi hàm send_email_with_attachment với đường dẫn tệp và mã lớp từ bảng tonghop
+            send_email_with_attachment(summary_file, class_codes)
+
+        else:
+            print(f"Hiện tại là {now.strftime('%Y-%m-%d %H:%M:%S')} - Không đủ điều kiện để gửi email.")
+        
+        time.sleep(10)  # Kiểm tra mỗi 60 giây
+
+
+def check_emails_and_process():
+    # Thông tin đăng nhập email
+    IMAP_SERVER = "imap.gmail.com"
+    EMAIL_ACCOUNT = "tranhuuhauthh@gmail.com"
+    PASSWORD = "jmny hcmf voxq ekbj"  # Cần tạo app password nếu dùng Gmail
+
+    # Kết nối tới server IMAP
+    mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+    mail.login(EMAIL_ACCOUNT, PASSWORD)
+    mail.select("inbox")
+
+    # Tìm email chưa đọc (Unread emails)
+    status, messages = mail.search(None, '(UNSEEN)')
+    
+    # Kiểm tra xem có email nào chưa đọc
+    if status != "OK" or not messages[0]:
+        print("Không có email mới")
+        return
+
+    email_ids = messages[0].split()
+
+    email_class_codes = []  # Biến lưu trữ mã lớp lấy từ email
+    for email_id in email_ids:
+        status, msg_data = mail.fetch(email_id, "(RFC822)")
+        if status != "OK":
+            print(f"Lỗi khi tải email ID {email_id}")
+            continue
+        
+        # Đọc email và giải mã nội dung
+        for response_part in msg_data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_bytes(response_part[1])
+                subject, encoding = decode_header(msg["Subject"])[0]
+                if isinstance(subject, bytes):
+                    subject = subject.decode(encoding if encoding else "utf-8")
+
+                from_email = msg.get("From")
+                print(f"Đang xử lý email từ: {from_email} - Chủ đề: {subject}")
+
+                # Lấy nội dung email
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        if part.get_content_type() == "text/plain":
+                            body = part.get_payload(decode=True).decode(part.get_content_charset())
+                            class_codes_from_email = extract_class_codes_from_message(body)
+                            email_class_codes.extend(class_codes_from_email)
+                            print(f"Mã lớp nhận được từ email: {class_codes_from_email}")
+
+    if email_class_codes:
+        send_late_report_email(from_email, email_class_codes)
+
+    mail.logout()
+
+
+def extract_class_codes_from_message(body):
+    # Tìm và tách các mã lớp từ nội dung email theo định dạng đã cho
+    match = re.search(r"Đây là báo cáo tổng hợp sinh viên vắng nhiều của tất cả các lớp: (.+)", body)
+    if match:
+        class_codes = match.group(1).split(", ")
+        return class_codes
+    return []
+
+
+def send_late_report_email(from_email, email_class_codes):
+    # Kiểm tra hạn chót (giả sử hạn chót là ngày 15 và 30 hàng tháng)
+    today = datetime.today()
+    if today.day > 15 and today.day < 30:
+        # Tạo nội dung báo cáo
+        subject = "Báo cáo quản lý về lớp trễ hạn"
+        body = f"Người gửi: {from_email}\nLớp: {', '.join(email_class_codes)}\nTình trạng: Trễ hạn"
+        recipient_email = "tranhuuhau2003@gmail.com"  # Email quản lý
+
+        send_email(recipient_email, subject, body)
+
+
+def send_email(to_email, subject, body):
+     # Thông tin đăng nhập email
+    EMAIL_ACCOUNT = "tranhuuhauthh@gmail.com"
+    PASSWORD = "jmny hcmf voxq ekbj"  # Cần tạo app password nếu dùng Gmail
+    
+    sender_email = EMAIL_ACCOUNT
+    password = PASSWORD
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Gửi email
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()
+            server.login(sender_email, password)
+            server.send_message(msg)
+            print(f"Đã gửi email tới {to_email}")
+    except Exception as e:
+        print(f"Lỗi khi gửi email: {e}")
+
+
+
+
 def main():
     global df_sinh_vien, ma_lop, ten_mon_hoc, summary_file
     global chart_frame 
@@ -1329,7 +1504,9 @@ def main():
     summarize_button = Button(center_frame, text="Tổng hợp file", command=lambda: load_and_summarize_students(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     summarize_button.pack(anchor='center', pady=10)
 
-    send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp", command=lambda: send_email_with_attachment(summary_file) if summary_file else print("Không có tệp tóm tắt để gửi!"), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp", 
+                                   command=lambda: save_absent_students_to_excel() if summary_file else print("Không có tệp tóm tắt để gửi!"), 
+                                   width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     send_summary_email_button.pack(anchor='center', pady=10)
     
     refresh_button = Button(center_frame, text="Refresh", command=lambda: refresh_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
