@@ -29,8 +29,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
 import re  # Thêm dòng này
-
-
+from datetime import timedelta
 
 # Biến toàn cục lưu trữ dữ liệu sinh viên
 global df_sinh_vien, ma_lop, ten_mon_hoc
@@ -1368,6 +1367,105 @@ def send_late_report_email(from_email, email_class_codes):
 
 
 
+ 
+
+# def send_question(student_email, staff_email, manager_email, question):
+#     try:
+#         smtp_server = 'smtp.gmail.com'
+#         smtp_port = 587
+#         smtp_user = 'carotneee4@gmail.com'
+#         smtp_password = 'bgjx tavb oxba ickr'  # Mật khẩu thực tế
+
+#         # Tạo nội dung email
+#         message = MIMEMultipart()
+#         message['From'] = student_email
+#         message['To'] = staff_email
+#         message['Subject'] = f'Câu hỏi từ sinh viên: {student_email}'
+
+#         body = f'''Chào nhân viên,
+
+#         Sinh viên {student_email} đã gửi câu hỏi:
+
+#         "{question}"
+
+#         Vui lòng trả lời câu hỏi này trong thời gian sớm nhất. Nếu không có phản hồi trong 24 giờ, câu hỏi sẽ được nhắc nhở gửi tới quản lý {manager_email}.
+
+#         Trân trọng,
+#         Hệ thống hỗ trợ học vụ
+#         '''
+#         message.attach(MIMEText(body, 'plain'))
+
+#         server = smtplib.SMTP(smtp_server, smtp_port)
+#         server.starttls()
+#         server.login(smtp_user, smtp_password)
+#         text = message.as_string()
+#         server.sendmail(student_email, staff_email, text)
+#         server.quit()
+
+#         print(f'Đã gửi email câu hỏi đến nhân viên: {staff_email}')
+
+#         # Theo dõi câu hỏi và lập lịch nhắc nhở
+#         track_question(student_email, staff_email, manager_email, question)
+
+#     except Exception as e:
+#         print(f'Không thể gửi email: {str(e)}')
+
+# def track_question(student_email, staff_email, manager_email, question):
+#     submission_time = datetime.now()
+#     print(f"Đã gửi câu hỏi lúc: {submission_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+#     # Lập lịch kiểm tra phản hồi sau 30 giây
+#     schedule.every(10).seconds.do(check_response, student_email, staff_email, manager_email, question)
+
+# def check_response(student_email, staff_email, manager_email, question):
+#     print(f"Kiểm tra phản hồi cho câu hỏi từ {student_email}...")
+    
+#     if not check_if_answered(student_email, question):
+#         print("Không có phản hồi. Gửi nhắc nhở cho quản lý.")
+#         send_reminder_to_manager(student_email, staff_email, manager_email, question)
+#     else:
+#         print("Câu hỏi đã được trả lời.")
+
+# def send_reminder_to_manager(student_email, staff_email, manager_email, question):
+#     try:
+#         smtp_server = 'smtp.gmail.com'
+#         smtp_port = 587
+#         smtp_user = 'carotneee4@gmail.com'
+#         smtp_password = 'bgjx tavb oxba ickr'  # Mật khẩu thực tế
+
+#         message = MIMEMultipart()
+#         message['From'] = smtp_user
+#         message['To'] = manager_email
+#         message['Subject'] = f'Nhắc nhở: Không có phản hồi cho câu hỏi từ {student_email}'
+
+#         body = f'''Chào Quản lý,
+
+#         Sinh viên {student_email} đã gửi câu hỏi tới {staff_email} nhưng chưa nhận được phản hồi trong 30 giây. 
+#         Vui lòng kiểm tra và hỗ trợ.
+
+#         Câu hỏi: {question}
+
+#         Trân trọng,
+#         Hệ thống hỗ trợ học vụ
+#         '''
+#         message.attach(MIMEText(body, 'plain'))
+
+#         server = smtplib.SMTP(smtp_server, smtp_port)
+#         server.starttls()
+#         server.login(smtp_user, smtp_password)
+#         text = message.as_string()
+#         server.sendmail(smtp_user, manager_email, text)
+#         server.quit()
+
+#         print(f'Đã gửi email nhắc nhở đến quản lý: {manager_email}')
+#     except Exception as e:
+#         print(f'Không thể gửi email nhắc nhở: {str(e)}')
+
+# def check_if_answered(student_email, question):
+#     # Thay thế bằng cách kiểm tra dữ liệu thực tế
+#     answered_questions = []  # Danh sách câu hỏi đã trả lời
+#     return question in answered_questions
+
 
 def main():
     global df_sinh_vien, ma_lop, ten_mon_hoc, summary_file
@@ -1476,12 +1574,15 @@ def main():
     summarize_button.pack(anchor='center', pady=10)
 
     send_summary_email_button = Button(center_frame, text="Gửi Email tổng hợp", 
-                                   command=lambda: save_absent_students_to_excel() if summary_file else print("Không có tệp tóm tắt để gửi!"), 
-                                   width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+                                command=lambda: save_absent_students_to_excel() if summary_file else print("Không có tệp tóm tắt để gửi!"), 
+                                width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     send_summary_email_button.pack(anchor='center', pady=10)
     
     refresh_button = Button(center_frame, text="Refresh", command=lambda: refresh_treeview(tree), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
     refresh_button.pack(anchor='center', pady=10)
+    
+    # send_question_button = Button(center_frame, text="send question", command=lambda: send_question('carotneee4@gmail.com', 'tranhuuhauthh@gmail.com', 'tranhuuhauthh@gmail.com', 'Câu hỏi mẫu từ sinh viên'), width=button_width, bg=button_color, fg='black', font=("Times New Roman", 10))
+    # send_question_button.pack(anchor='center', pady=10)
     
     initialize_database()
     
@@ -1508,7 +1609,8 @@ if __name__ == "__main__":
 
     # Hiển thị form đăng nhập
     show_login_form()
-
+    
     # Để giữ cho chương trình hoạt động, có thể cần một vòng lặp chính
     while True:
+        # schedule.run_pending()  # Thêm dòng này để chạy các tác vụ đã lên lịch
         time.sleep(1)
